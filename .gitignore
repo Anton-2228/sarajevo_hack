@@ -1,0 +1,7 @@
+.venv/
+data/
+__pycache__/
+.pytest_cache/
+.pm_node*.json
+.DS_Store
+.idea/

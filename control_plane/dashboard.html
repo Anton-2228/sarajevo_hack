@@ -1,0 +1,1426 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proxy Mesh — control room</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#F4F6F8; --surface:#FFFFFF; --surface-2:#EAEEF2; --border:#D8DFE6;
+    --ink:#131A21; --ink-muted:#5B6B78; --ink-faint:#8A97A3;
+    --accent:#0E8F79; --accent-2:#B4750A;
+    --good:#1E9E5A; --good-bg:#E4F5EB; --warn:#B4750A; --warn-bg:#FBF0DD;
+    --crit:#C1443C; --crit-bg:#FBE7E5; --off-bg:#EDF0F2;
+    --font-display:"Archivo",system-ui,sans-serif;
+    --font-body:"IBM Plex Sans",system-ui,sans-serif;
+    --font-mono:"IBM Plex Mono","SFMono-Regular",Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0B0F13; --surface:#121820; --surface-2:#1A222B; --border:#26313C;
+      --ink:#E7EDF2; --ink-muted:#93A2AF; --ink-faint:#64727E;
+      --accent:#4FD9B8; --accent-2:#F0B24C;
+      --good:#46D67F; --good-bg:#123322; --warn:#F0B24C; --warn-bg:#3A2E12;
+      --crit:#F17369; --crit-bg:#3A1917; --off-bg:#1C232C;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0B0F13; --surface:#121820; --surface-2:#1A222B; --border:#26313C;
+    --ink:#E7EDF2; --ink-muted:#93A2AF; --ink-faint:#64727E;
+    --accent:#4FD9B8; --accent-2:#F0B24C;
+    --good:#46D67F; --good-bg:#123322; --warn:#F0B24C; --warn-bg:#3A2E12;
+    --crit:#F17369; --crit-bg:#3A1917; --off-bg:#1C232C;
+  }
+  *{box-sizing:border-box;}
+  body{background:var(--bg); color:var(--ink); font-family:var(--font-body); font-size:14px; margin:0;}
+  .page{max-width:1180px; margin:0 auto; padding:28px 24px 60px; display:flex; flex-direction:column; gap:20px;}
+
+  header{display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:14px;
+    border-bottom:1px solid var(--border); padding-bottom:16px;}
+  .eyebrow{font-family:var(--font-mono); font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-faint);}
+  h1{font-family:var(--font-display); font-weight:800; font-size:24px; margin:4px 0 0; letter-spacing:-.01em;}
+  .live{display:flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:12px; color:var(--ink-muted);}
+  .live .dot{width:7px; height:7px; border-radius:50%; background:var(--good); animation:pulse 1.8s ease-in-out infinite;}
+  @media (prefers-reduced-motion:reduce){ .live .dot{animation:none;} }
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  .tabs{display:flex; gap:22px; border-bottom:1px solid var(--border);}
+  .tab{appearance:none; border:0; border-bottom:2px solid transparent; background:transparent; color:var(--ink-muted);
+    padding:0 1px 10px; font:600 13px var(--font-body); cursor:pointer;}
+  .tab:hover{color:var(--ink);} .tab.active{color:var(--ink); border-bottom-color:var(--accent);}
+  .view{display:none; flex-direction:column; gap:26px;} .view.active{display:flex;}
+
+  .summary{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px;}
+  .stat{background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px;
+    display:flex; flex-direction:column; gap:4px;}
+  .stat .n{font-family:var(--font-mono); font-weight:600; font-size:26px; font-variant-numeric:tabular-nums;}
+  .stat .l{font-family:var(--font-mono); font-size:10.5px; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-faint);}
+
+  section{display:flex; flex-direction:column; gap:12px;}
+  .section-head{display:flex; align-items:baseline; justify-content:space-between; gap:12px;}
+  h2{font-family:var(--font-display); font-weight:700; font-size:15px; margin:0;}
+  .count-tag{font-family:var(--font-mono); font-size:11.5px; color:var(--ink-faint);}
+  .empty{color:var(--ink-faint); font-size:13px; font-family:var(--font-mono); padding:18px;
+    border:1px dashed var(--border); border-radius:8px; text-align:center;}
+
+  .pill{display:inline-flex; align-items:center; gap:5px; font-family:var(--font-mono); font-size:11px;
+    font-weight:500; padding:2px 9px; border-radius:99px; white-space:nowrap;}
+  .pill .d{width:6px; height:6px; border-radius:50%;}
+  .pill.good{background:var(--good-bg); color:var(--good);} .pill.good .d{background:var(--good);}
+  .pill.warn{background:var(--warn-bg); color:var(--warn);} .pill.warn .d{background:var(--warn);}
+  .pill.crit{background:var(--crit-bg); color:var(--crit);} .pill.crit .d{background:var(--crit);}
+  .pill.off{background:var(--off-bg); color:var(--ink-faint);} .pill.off .d{background:var(--ink-faint);}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:12px;}
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px;
+    display:flex; flex-direction:column; gap:10px;}
+  .card.clickable{cursor:pointer; transition:border-color .15s ease, transform .15s ease;}
+  .card.clickable:hover{border-color:var(--accent); transform:translateY(-1px);}
+  .card .row{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+  .card .id{font-family:var(--font-mono); font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .card .sub{font-family:var(--font-mono); font-size:11px; color:var(--ink-faint); display:flex; gap:12px; flex-wrap:wrap;}
+  .tags{display:flex; gap:5px; flex-wrap:wrap;}
+  .tag{font-family:var(--font-mono); font-size:10px; background:var(--surface-2); color:var(--ink-muted);
+    padding:2px 7px; border-radius:5px;}
+  .telemetry-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:12px;}
+  .telemetry-card{background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px;
+    display:flex; flex-direction:column; gap:12px; min-width:0;}
+  .telemetry-card .head{display:flex; justify-content:space-between; align-items:center; gap:10px;}
+  .telemetry-card .title{font-family:var(--font-mono); font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .telemetry-metrics{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 18px;}
+  .metric-cell{border-top:1px solid var(--border); padding-top:8px; min-width:0;}
+  .metric-cell .metric-head{display:flex; justify-content:space-between; gap:8px; align-items:baseline;
+    font-family:var(--font-mono); font-size:10px; color:var(--ink-faint);}
+  .metric-cell .metric-value{font-size:12px; color:var(--ink); font-weight:600;}
+  .metric-cell svg{width:100%; height:34px; display:block; margin-top:4px;}
+
+  .bar-track{height:7px; border-radius:99px; background:var(--surface-2); overflow:hidden;}
+  .bar-fill{height:100%; border-radius:99px; background:var(--accent); transition:width .3s ease;}
+  .bar-fill.amber{background:var(--accent-2);}
+  .bar-label{display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:10.5px; color:var(--ink-faint);}
+
+  .steps{display:flex; gap:3px;}
+  .step{flex:1; height:5px; border-radius:3px; background:var(--surface-2);}
+  .step.done{background:var(--accent-2);}
+
+  table{width:100%; border-collapse:collapse;}
+  .table-wrap{background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow-x:auto;}
+  .table-wrap table{min-width:640px;}
+  thead th{text-align:left; font-family:var(--font-mono); font-size:10px; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--ink-faint); font-weight:500; padding:10px 14px; border-bottom:1px solid var(--border); white-space:nowrap;}
+  tbody td{padding:11px 14px; border-bottom:1px solid var(--border); font-family:var(--font-mono); font-size:12.5px;
+    vertical-align:middle; white-space:nowrap;}
+  tbody tr:last-child td{border-bottom:none;}
+  .seg-bar{display:flex; height:8px; width:140px; border-radius:99px; overflow:hidden; background:var(--surface-2);}
+  .seg{height:100%;}
+  .seg.assigned{background:var(--ink-faint);} .seg.accepted{background:var(--accent-2);} .seg.submitted{background:var(--accent);}
+  .chips{display:flex; gap:4px; flex-wrap:wrap;}
+  .chip{font-family:var(--font-mono); font-size:10px; padding:2px 6px; border-radius:5px; cursor:default;}
+  .chip.pending{background:var(--warn-bg); color:var(--warn);} .chip.unknown{background:var(--off-bg); color:var(--ink-faint);}
+  .chip.off{background:var(--off-bg); color:var(--ink-faint); opacity:.7;}
+
+  .spark-row{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px;}
+  .spark-card{background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px;}
+  .spark-card .head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;}
+  .spark-card .title{font-family:var(--font-display); font-weight:700; font-size:12.5px;}
+  .spark-card .val{font-family:var(--font-mono); font-weight:600; font-size:16px; font-variant-numeric:tabular-nums;}
+  .spark-card svg{width:100%; height:44px; display:block; overflow:visible;}
+
+  legend-row{display:flex; gap:14px; font-family:var(--font-mono); font-size:10.5px; color:var(--ink-faint);}
+  .legend-row{display:flex; gap:14px; font-family:var(--font-mono); font-size:10.5px; color:var(--ink-faint); flex-wrap:wrap;}
+  .legend-row span{display:inline-flex; align-items:center; gap:5px;}
+  .legend-row i{width:8px; height:8px; border-radius:2px; display:inline-block;}
+
+  button,input{font:inherit;}
+  .button{border:1px solid var(--border); background:var(--surface); color:var(--ink); border-radius:6px;
+    min-height:34px; padding:7px 12px; font-weight:600; cursor:pointer;}
+  .button:hover:not(:disabled){border-color:var(--ink-faint); background:var(--surface-2);}
+  .button.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .button:disabled{opacity:.45; cursor:not-allowed;}
+  .icon-button{width:34px; height:34px; padding:0; display:inline-grid; place-items:center; font-size:18px;}
+  .dataset-toolbar{display:flex; justify-content:space-between; align-items:center; gap:14px;}
+  .dataset-toolbar h2{font-size:18px;}
+  .dataset-shell{display:grid; grid-template-columns:270px minmax(0,1fr); min-height:580px; background:var(--surface);
+    border:1px solid var(--border); border-radius:8px; overflow:hidden;}
+  .dataset-sidebar{border-right:1px solid var(--border); display:flex; flex-direction:column; min-width:0;}
+  .dataset-sidebar-head{padding:13px 14px; border-bottom:1px solid var(--border); display:flex;
+    align-items:center; justify-content:space-between;}
+  .dataset-list{display:flex; flex-direction:column; overflow:auto;}
+  .dataset-item{appearance:none; border:0; border-bottom:1px solid var(--border); background:transparent;
+    color:var(--ink); padding:13px 14px; text-align:left; cursor:pointer; display:flex; flex-direction:column; gap:5px;}
+  .dataset-item:hover{background:var(--surface-2);} .dataset-item.active{background:var(--surface-2); box-shadow:inset 3px 0 var(--accent);}
+  .dataset-item .name{font-family:var(--font-mono); font-weight:600; overflow-wrap:anywhere;}
+  .dataset-item .meta{font:11px var(--font-mono); color:var(--ink-faint); display:flex; gap:10px;}
+  .dataset-content{padding:18px; min-width:0; display:flex; flex-direction:column; gap:16px;}
+  #dataset-detail{display:flex; flex-direction:column; gap:16px;} #dataset-detail[hidden]{display:none;}
+  .dataset-content-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px;}
+  .dataset-title{font:700 18px var(--font-display); overflow-wrap:anywhere;}
+  .dataset-stats{display:grid; grid-template-columns:repeat(3,minmax(110px,1fr)); gap:1px; background:var(--border);
+    border:1px solid var(--border); border-radius:8px; overflow:hidden;}
+  .dataset-stat{background:var(--surface); padding:11px 13px;}
+  .dataset-stat strong{display:block; font:600 18px var(--font-mono);}
+  .dataset-stat span{font:10px var(--font-mono); color:var(--ink-faint); text-transform:uppercase; letter-spacing:.04em;}
+  .dataset-controls{display:flex; gap:8px; align-items:center;}
+  .search{width:min(420px,100%); border:1px solid var(--border); border-radius:6px; background:var(--bg);
+    color:var(--ink); min-height:34px; padding:7px 10px; outline:none;}
+  .search:focus,.field:focus{border-color:var(--accent); box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 18%,transparent);}
+  .dataset-table{table-layout:fixed; min-width:720px;}
+  .dataset-table th:nth-child(1){width:112px}.dataset-table th:nth-child(2){width:155px}
+  .dataset-table td{white-space:normal; vertical-align:top;}
+  .chunk-hash{font:11px var(--font-mono); color:var(--ink-muted); overflow-wrap:anywhere;}
+  .chunk-text{font:13px/1.45 var(--font-body); color:var(--ink); white-space:pre-wrap; overflow-wrap:anywhere;
+    display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical; overflow:hidden;}
+  .label-badge{display:inline-flex; min-width:28px; justify-content:center; border-radius:5px; padding:2px 6px;
+    background:var(--good-bg); color:var(--good); font:600 11px var(--font-mono);}
+  .label-badge.none{background:var(--off-bg); color:var(--ink-faint);}
+  .label-source{display:block; margin-top:4px; font:9px var(--font-mono); color:var(--ink-faint);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .pager{display:flex; justify-content:flex-end; align-items:center; gap:8px;}
+  .pager-status{font:11px var(--font-mono); color:var(--ink-faint); min-width:120px; text-align:center;}
+  dialog{width:min(620px,calc(100vw - 28px)); border:1px solid var(--border); border-radius:8px; padding:0;
+    background:var(--surface); color:var(--ink); box-shadow:0 18px 60px rgba(0,0,0,.3);}
+  dialog.wide{width:min(980px,calc(100vw - 28px));}
+  dialog.wide .dialog-body{max-height:78vh; overflow-y:auto;}
+  .cd-head{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;}
+  .cd-chips{display:flex; gap:6px; flex-wrap:wrap;}
+  .cd-chip{font-family:var(--font-mono); font-size:11px; background:var(--surface-2); color:var(--ink-muted);
+    padding:3px 9px; border-radius:99px;}
+  .cd-section{display:flex; flex-direction:column; gap:10px; padding-top:16px; border-top:1px solid var(--border);}
+  .cd-section h3{font-family:var(--font-display); font-weight:700; font-size:13px; margin:0;}
+  .cd-round{border:1px solid var(--border); border-radius:8px; padding:12px 14px; display:flex; flex-direction:column; gap:10px;}
+  .cd-round-head{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+  .cd-round-title{font-family:var(--font-mono); font-weight:600; font-size:12.5px;}
+  .cd-round-sub{font-family:var(--font-mono); font-size:11px; color:var(--ink-faint);}
+  .stage-row{display:grid; grid-template-columns:120px minmax(0,1fr); gap:10px; align-items:center;}
+  .stage-row .node-name{font-family:var(--font-mono); font-size:11px; color:var(--ink-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .stage-track{position:relative; height:16px; border-radius:4px; background:var(--surface-2); overflow:hidden; display:flex;}
+  .stage-seg{height:100%;}
+  .stage-seg[data-stage="downloading"]{background:var(--ink-faint);}
+  .stage-seg[data-stage="training"]{background:var(--accent-2);}
+  .stage-seg[data-stage="scoring"]{background:var(--accent);}
+  .stage-seg[data-stage="uploading"]{background:#6a7cff;}
+  .stage-seg[data-stage="idle"], .stage-seg[data-stage="none"]{background:transparent;}
+  .cd-empty{color:var(--ink-faint); font-family:var(--font-mono); font-size:11.5px;}
+  dialog::backdrop{background:rgba(8,14,19,.6);}
+  .dialog-head,.dialog-actions{display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 18px;
+    border-bottom:1px solid var(--border);}
+  .dialog-head h2{font-size:16px;} .dialog-actions{border-bottom:0; border-top:1px solid var(--border); justify-content:flex-end;}
+  .dialog-body{padding:18px; display:flex; flex-direction:column; gap:16px;}
+  .field-group{display:flex; flex-direction:column; gap:6px;}
+  .field-group label{font:11px var(--font-mono); color:var(--ink-muted);}
+  .field{border:1px solid var(--border); border-radius:6px; min-height:36px; padding:8px 10px;
+    background:var(--bg); color:var(--ink); outline:none; width:100%;}
+  .field::placeholder{color:var(--ink-faint); opacity:1;}
+  .file-picker{border:1px dashed var(--border); border-radius:8px; padding:20px; text-align:center; cursor:pointer;
+    font:12px var(--font-mono); color:var(--ink-muted);}
+  .file-picker:hover{border-color:var(--accent); color:var(--ink);}
+  .file-picker input{position:absolute; opacity:0; pointer-events:none;}
+  .import-status{min-height:18px; font:11px/1.5 var(--font-mono); color:var(--ink-muted);}
+  .import-status.error{color:var(--crit);}
+  .parquet-options{border-top:1px solid var(--border); padding-top:16px; display:flex; flex-direction:column; gap:12px;}
+  .parquet-options[hidden]{display:none;}
+  .parquet-meta{font:11px var(--font-mono); color:var(--ink-faint);}
+  .mapping-grid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px;}
+  .threshold-row{display:grid; grid-template-columns:minmax(0,1fr) 120px; gap:8px;}
+  .threshold-row.binary{grid-template-columns:1fr;}
+  .progress-track{height:6px; border-radius:3px; background:var(--surface-2); overflow:hidden;}
+  .progress-fill{height:100%; width:0; background:var(--accent); transition:width .2s ease;}
+  @media (max-width:560px){
+    .page{padding:20px 14px 44px;}
+    .telemetry-grid{grid-template-columns:1fr;}
+    .telemetry-metrics{grid-template-columns:1fr;}
+    .dataset-shell{grid-template-columns:1fr;}
+    .dataset-sidebar{border-right:0; border-bottom:1px solid var(--border); max-height:210px;}
+    .dataset-stats{grid-template-columns:1fr;}
+    .mapping-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div>
+      <div class="eyebrow">Proxy Mesh · control plane</div>
+      <h1 id="page-title">Control room</h1>
+    </div>
+    <div class="live"><span class="dot"></span><span id="asof">connecting…</span></div>
+  </header>
+
+  <nav class="tabs" aria-label="Workspace">
+    <button class="tab active" type="button" data-view="control" aria-selected="true">Control room</button>
+    <button class="tab" type="button" data-view="datasets" aria-selected="false">Datasets</button>
+  </nav>
+
+  <main class="view active" id="view-control">
+  <div class="summary" id="summary"></div>
+
+  <section>
+    <div class="section-head"><h2>Campaigns</h2>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="count-tag" id="campaigns-count"></span>
+        <button class="button primary" id="open-campaign" type="button">New campaign</button>
+      </div>
+    </div>
+    <div class="grid" id="campaigns"></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Nodes</h2><span class="count-tag" id="nodes-count"></span></div>
+    <div class="grid" id="nodes"></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Client telemetry</h2><span class="count-tag" id="telemetry-count"></span></div>
+    <div class="telemetry-grid" id="telemetry"></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Rounds</h2><span class="count-tag" id="rounds-count"></span></div>
+    <div class="legend-row">
+      <span><i style="background:var(--ink-faint)"></i>assigned</span>
+      <span><i style="background:var(--accent-2)"></i>accepted</span>
+      <span><i style="background:var(--accent)"></i>submitted</span>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>round</th><th>model</th><th>status</th><th>participants</th><th>submissions</th></tr></thead>
+      <tbody id="rounds"></tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Shards</h2><span class="count-tag" id="shards-count"></span></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>shard</th><th>chunks</th><th>oracle labels</th><th></th></tr></thead>
+      <tbody id="shards"></tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Control-plane activity</h2></div>
+    <div class="spark-row" id="sparks"></div>
+  </section>
+  </main>
+
+  <main class="view" id="view-datasets">
+    <div class="dataset-toolbar">
+      <div><div class="eyebrow">Server-held shards</div><h2>Datasets</h2></div>
+      <button class="button primary" id="open-import" type="button">Import dataset</button>
+    </div>
+    <div class="dataset-shell">
+      <aside class="dataset-sidebar">
+        <div class="dataset-sidebar-head"><strong>All datasets</strong><span class="count-tag" id="dataset-count"></span></div>
+        <div class="dataset-list" id="dataset-list"></div>
+      </aside>
+      <section class="dataset-content">
+        <div class="empty" id="dataset-empty">No datasets loaded.</div>
+        <div id="dataset-detail" hidden>
+          <div class="dataset-content-head">
+            <div><div class="eyebrow">Dataset</div><div class="dataset-title" id="dataset-title"></div></div>
+            <button class="button icon-button" id="refresh-dataset" type="button" title="Refresh dataset" aria-label="Refresh dataset">↻</button>
+          </div>
+          <div class="dataset-stats" id="dataset-stats"></div>
+          <div class="dataset-controls">
+            <input class="search" id="dataset-search" type="search" placeholder="Search chunk ID or text" aria-label="Search dataset">
+          </div>
+          <div class="table-wrap"><table class="dataset-table">
+            <thead><tr><th>label</th><th>chunk ID</th><th>text</th></tr></thead>
+            <tbody id="dataset-rows"></tbody>
+          </table></div>
+          <div class="pager">
+            <button class="button icon-button" id="dataset-prev" type="button" title="Previous page" aria-label="Previous page">‹</button>
+            <span class="pager-status" id="dataset-page"></span>
+            <button class="button icon-button" id="dataset-next" type="button" title="Next page" aria-label="Next page">›</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<dialog id="import-dialog">
+  <div class="dialog-head"><h2>Import dataset</h2><button class="button icon-button" id="close-import" type="button" aria-label="Close">×</button></div>
+  <div class="dialog-body">
+    <div class="field-group">
+      <label for="import-shard-id">Dataset ID</label>
+      <input class="field" id="import-shard-id" autocomplete="off" placeholder="fineweb-edu-v2">
+    </div>
+    <div class="field-group">
+      <label for="import-file">Source file · JSON, JSONL, TXT or Parquet</label>
+      <label class="file-picker" for="import-file"><span id="import-file-label">Choose file</span>
+        <input id="import-file" type="file" accept=".json,.jsonl,.txt,.parquet,application/json,text/plain,application/vnd.apache.parquet,application/octet-stream">
+      </label>
+    </div>
+    <div class="parquet-options" id="parquet-options" hidden>
+      <div class="parquet-meta" id="parquet-meta"></div>
+      <div class="mapping-grid">
+        <div class="field-group"><label for="parquet-text-column">Text column</label><select class="field" id="parquet-text-column"></select></div>
+        <div class="field-group"><label for="parquet-id-column">Chunk ID column</label><select class="field" id="parquet-id-column"></select></div>
+        <div class="field-group"><label for="parquet-label-column">Oracle label column</label><select class="field" id="parquet-label-column"></select></div>
+        <div class="field-group"><label for="parquet-label-mode">Label conversion</label>
+          <div class="threshold-row" id="threshold-row">
+            <select class="field" id="parquet-label-mode"><option value="binary">Binary 0/1</option><option value="threshold">Value ≥ threshold</option></select>
+            <input class="field" id="parquet-label-threshold" type="number" step="any" value="3" aria-label="Label threshold">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="import-status" id="import-status"></div>
+    <div class="progress-track"><div class="progress-fill" id="import-progress"></div></div>
+  </div>
+  <div class="dialog-actions">
+    <button class="button" id="cancel-import" type="button">Cancel</button>
+    <button class="button primary" id="run-import" type="button" disabled>Import</button>
+  </div>
+</dialog>
+
+<dialog id="campaign-dialog">
+  <div class="dialog-head"><h2>New campaign</h2><button class="button icon-button" id="close-campaign" type="button" aria-label="Close">×</button></div>
+  <div class="dialog-body">
+    <div class="field-group">
+      <label for="campaign-clone">Clone settings from <span style="opacity:.7">(recommended — model id and metrics must match what your nodes actually understand, they are not free text)</span></label>
+      <select class="field" id="campaign-clone"><option value="">— start from scratch —</option></select>
+    </div>
+    <div class="mapping-grid">
+      <div class="field-group">
+        <label for="campaign-id">Campaign ID</label>
+        <input class="field" id="campaign-id" autocomplete="off" placeholder="fwedu-real-20k-sharded-6-v8">
+      </div>
+      <div class="field-group">
+        <label for="campaign-shard">Dataset (shard)</label>
+        <select class="field" id="campaign-shard"></select>
+      </div>
+    </div>
+    <div class="mapping-grid">
+      <div class="field-group">
+        <label for="campaign-mode">Mode</label>
+        <select class="field" id="campaign-mode">
+          <option value="sharded">sharded — each node trains &amp; scores its own partition</option>
+          <option value="experts">experts — each node trains its domain, scores the whole pool</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label for="campaign-train-mode">Train mode</label>
+        <select class="field" id="campaign-train-mode">
+          <option value="fresh">fresh — retrain from the recipe each round</option>
+          <option value="continue">continue — resume from the previous round's checkpoint</option>
+        </select>
+      </div>
+    </div>
+    <div class="mapping-grid">
+      <div class="field-group">
+        <label for="campaign-model-kind">Model kind</label>
+        <select class="field" id="campaign-model-kind"><option value="classifier">classifier</option><option value="lora">lora</option></select>
+      </div>
+      <div class="field-group">
+        <label for="campaign-model-id">Model ID <span style="opacity:.7">(must be a recipe your nodes recognize, not a free label)</span></label>
+        <input class="field" id="campaign-model-id" autocomplete="off" placeholder="fineweb-edu-quality-clf-v1">
+      </div>
+    </div>
+    <div class="field-group">
+      <label for="campaign-metrics">Metrics <span style="opacity:.7">(comma-separated; leaving this empty means nodes report nothing back)</span></label>
+      <input class="field" id="campaign-metrics" autocomplete="off" placeholder="n_chunks, eval_spearman, n_dedup_dropped">
+    </div>
+    <div class="field-group">
+      <label>Nodes <span style="opacity:.7">(order fixes partition 0, 1, 2…)</span></label>
+      <div id="campaign-nodes" style="display:flex; flex-direction:column; gap:6px; max-height:180px; overflow:auto;
+        border:1px solid var(--border); border-radius:6px; padding:8px 10px; background:var(--bg);"></div>
+    </div>
+    <div class="mapping-grid">
+      <div class="field-group">
+        <label for="campaign-schedule">Schedule <span style="opacity:.7">(cumulative labels per partition)</span></label>
+        <input class="field" id="campaign-schedule" autocomplete="off" placeholder="84, 167, 334">
+      </div>
+      <div class="field-group">
+        <label for="campaign-strategy">Acquisition strategy</label>
+        <select class="field" id="campaign-strategy"><option value="cutoff">cutoff</option><option value="random">random</option><option value="qbc">qbc</option></select>
+      </div>
+    </div>
+    <div class="mapping-grid">
+      <div class="field-group">
+        <label for="campaign-k-frac">k_frac <span style="opacity:.7">(target top-k share of shard)</span></label>
+        <input class="field" id="campaign-k-frac" type="number" step="any" min="0" max="1" value="0.1">
+      </div>
+      <div class="field-group">
+        <label for="campaign-good-min">good_min <span style="opacity:.7">(optional; label ≥ this counts as good)</span></label>
+        <input class="field" id="campaign-good-min" type="number" step="1" placeholder="none">
+      </div>
+    </div>
+    <div class="field-group">
+      <label for="campaign-seed">Seed</label>
+      <input class="field" id="campaign-seed" type="number" step="1" value="0">
+    </div>
+    <div class="import-status" id="campaign-status"></div>
+  </div>
+  <div class="dialog-actions">
+    <button class="button" id="cancel-campaign" type="button">Cancel</button>
+    <button class="button primary" id="run-campaign" type="button">Create campaign</button>
+  </div>
+</dialog>
+
+<dialog id="campaign-detail-dialog" class="wide">
+  <div class="dialog-head">
+    <div class="cd-head" style="flex:1;">
+      <div><div class="eyebrow" id="cd-eyebrow">Campaign</div><h2 id="cd-title" style="font-family:var(--font-mono);"></h2></div>
+      <span id="cd-status"></span>
+    </div>
+    <button class="button icon-button" id="close-campaign-detail" type="button" aria-label="Close">×</button>
+  </div>
+  <div class="dialog-body">
+    <div class="cd-chips" id="cd-chips"></div>
+    <div>
+      <div class="bar-label"><span>labels acquired</span><span id="cd-labels-text"></span></div>
+      <div class="bar-track"><div class="bar-fill" id="cd-labels-fill"></div></div>
+    </div>
+    <div class="cd-section">
+      <h3>Quality by round · avg eval_spearman</h3>
+      <div id="cd-quality-chart"></div>
+    </div>
+    <div class="cd-section">
+      <h3>Rounds</h3>
+      <div class="legend-row">
+        <span><i style="background:var(--ink-faint)"></i>downloading</span>
+        <span><i style="background:var(--accent-2)"></i>training</span>
+        <span><i style="background:var(--accent)"></i>scoring</span>
+        <span><i style="background:#6a7cff"></i>uploading</span>
+      </div>
+      <div id="cd-rounds" style="display:flex; flex-direction:column; gap:10px;"></div>
+    </div>
+    <div class="cd-section" id="cd-result-section" hidden>
+      <h3>Final selection</h3>
+      <div class="dataset-stats" id="cd-result"></div>
+    </div>
+  </div>
+</dialog>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const history = { onlineNodes: [], totalLabels: [], selectedTotal: [], nodeLoad: {} };
+const lastNodeHeartbeat = {};
+const MAX_HISTORY = 60;
+const MAX_NODE_HISTORY = 240;
+let telemetryHistoryLoaded = false;
+const NODE_METRICS = [
+  ['progress_pct', 'progress'], ['docs_per_sec', 'throughput'], ['train_loss', 'train loss'],
+  ['cpu_pct', 'CPU'], ['ram_pct', 'RAM'], ['gpu_util_pct', 'GPU'], ['gpu_mem_pct', 'VRAM'],
+];
+const datasetState = { shards: [], selected: null, offset: 0, limit: 25, query: '', total: 0 };
+let datasetsLoaded = false;
+let datasetRequest = 0;
+let datasetSearchTimer;
+let importRows = [];
+let importBusy = false;
+let importMode = null;
+let parquetUpload = null;
+let lastMetrics = null;
+let campaignBusy = false;
+
+const finite = (v) => typeof v === 'number' && Number.isFinite(v);
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+async function api(path, options){
+  const response = await fetch(path, {cache: 'no-store', ...options});
+  if (!response.ok){
+    let detail = `HTTP ${response.status}`;
+    try{
+      const body = await response.json();
+      detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail || body);
+    } catch (_) {}
+    throw new Error(detail);
+  }
+  return response.json();
+}
+
+function setWorkspace(name){
+  document.querySelectorAll('.tab').forEach(tab => {
+    const active = tab.dataset.view === name;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', String(active));
+  });
+  document.querySelectorAll('.view').forEach(view => view.classList.toggle('active', view.id === `view-${name}`));
+  $('page-title').textContent = name === 'datasets' ? 'Datasets' : 'Control room';
+  if (name === 'datasets' && !datasetsLoaded) loadDatasets().catch(showDatasetError);
+}
+
+function showDatasetError(error){
+  $('dataset-empty').hidden = false;
+  $('dataset-empty').textContent = `Could not load datasets: ${error.message}`;
+  $('dataset-detail').hidden = true;
+}
+
+function renderDatasetList(){
+  $('dataset-count').textContent = `${datasetState.shards.length}`;
+  $('dataset-list').innerHTML = datasetState.shards.length ? datasetState.shards.map(shard =>
+    `<button class="dataset-item ${shard.shard_id === datasetState.selected ? 'active' : ''}" type="button" data-shard="${esc(shard.shard_id)}">
+      <span class="name">${esc(shard.shard_id)}</span>
+      <span class="meta"><span>${shard.n_chunks.toLocaleString()} docs</span><span>${shard.n_labels.toLocaleString()} labeled</span></span>
+    </button>`).join('') : `<div class="empty">No datasets loaded.</div>`;
+  document.querySelectorAll('.dataset-item').forEach(button => button.addEventListener('click', () => {
+    selectDataset(button.dataset.shard).catch(showDatasetError);
+  }));
+}
+
+async function loadDatasets(preferred){
+  const data = await api('/shards');
+  datasetState.shards = data.shards || [];
+  datasetsLoaded = true;
+  const available = new Set(datasetState.shards.map(shard => shard.shard_id));
+  const next = preferred && available.has(preferred) ? preferred
+    : available.has(datasetState.selected) ? datasetState.selected
+    : datasetState.shards[0]?.shard_id || null;
+  datasetState.selected = next;
+  renderDatasetList();
+  if (next) await loadDatasetPage();
+  else {
+    $('dataset-empty').hidden = false;
+    $('dataset-empty').textContent = 'No datasets loaded.';
+    $('dataset-detail').hidden = true;
+  }
+}
+
+async function selectDataset(shardId){
+  datasetState.selected = shardId;
+  datasetState.offset = 0;
+  datasetState.query = '';
+  $('dataset-search').value = '';
+  renderDatasetList();
+  await loadDatasetPage();
+}
+
+async function loadDatasetPage(){
+  if (!datasetState.selected) return;
+  const request = ++datasetRequest;
+  const query = datasetState.query ? `&q=${encodeURIComponent(datasetState.query)}` : '';
+  const data = await api(`/shards/${encodeURIComponent(datasetState.selected)}/preview?offset=${datasetState.offset}&limit=${datasetState.limit}${query}`);
+  if (request !== datasetRequest) return;
+  datasetState.total = data.total;
+  renderDatasetPage(data);
+}
+
+function renderDatasetPage(data){
+  const shard = datasetState.shards.find(item => item.shard_id === datasetState.selected);
+  $('dataset-empty').hidden = true;
+  $('dataset-detail').hidden = false;
+  $('dataset-title').textContent = datasetState.selected;
+  const coverage = shard?.n_chunks ? shard.n_labels / shard.n_chunks * 100 : 0;
+  $('dataset-stats').innerHTML = [
+    [(shard?.n_chunks || 0).toLocaleString(), 'documents'],
+    [(shard?.n_labels || 0).toLocaleString(), 'oracle labels'],
+    [`${coverage.toFixed(1)}%`, 'coverage'],
+  ].map(([value, label]) => `<div class="dataset-stat"><strong>${value}</strong><span>${label}</span></div>`).join('');
+  $('dataset-rows').innerHTML = data.chunks.length ? data.chunks.map(chunk => {
+    const hasLabel = chunk.label !== null;
+    const label = hasLabel
+      ? `<span class="label-badge">${chunk.label}</span><span class="label-source" title="${esc(chunk.source || '')}">${esc(chunk.source || '')}</span>`
+      : `<span class="label-badge none">—</span>`;
+    return `<tr><td>${label}</td><td><span class="chunk-hash" title="${esc(chunk.chunk_id)}">${esc(chunk.chunk_id.slice(0, 16))}…</span></td>
+      <td><div class="chunk-text" title="${esc(chunk.text)}">${esc(chunk.text)}</div></td></tr>`;
+  }).join('') : `<tr><td colspan="3"><div class="empty">No matching documents.</div></td></tr>`;
+  const start = data.total ? data.offset + 1 : 0;
+  const end = Math.min(data.offset + data.chunks.length, data.total);
+  $('dataset-page').textContent = `${start.toLocaleString()}–${end.toLocaleString()} of ${data.total.toLocaleString()}`;
+  $('dataset-prev').disabled = data.offset === 0;
+  $('dataset-next').disabled = data.offset + data.limit >= data.total;
+}
+
+async function sha256(text){
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function importedSourceRows(file, text){
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.txt')) return text.split(/\r?\n/).filter(line => line.trim());
+  if (name.endsWith('.jsonl')) return text.split(/\r?\n/).filter(line => line.trim()).map((line, index) => {
+    try { return JSON.parse(line); }
+    catch (_) { throw new Error(`Invalid JSON on line ${index + 1}`); }
+  });
+  const parsed = JSON.parse(text);
+  const rows = Array.isArray(parsed) ? parsed : parsed?.chunks;
+  if (!Array.isArray(rows)) throw new Error('JSON must be an array or an object with a chunks array');
+  return rows;
+}
+
+async function prepareImport(file){
+  importRows = [];
+  importMode = null;
+  parquetUpload = null;
+  $('parquet-options').hidden = true;
+  $('run-import').disabled = true;
+  $('import-progress').style.width = '0%';
+  $('import-file-label').textContent = file?.name || 'Choose file';
+  if (!file){ $('import-status').textContent = ''; return; }
+  if (file.name.toLowerCase().endsWith('.parquet')){
+    await prepareParquet(file);
+    return;
+  }
+  try{
+    importMode = 'rows';
+    setImportStatus('Reading file…');
+    const source = importedSourceRows(file, await file.text());
+    if (!source.length) throw new Error('File contains no documents');
+    if (source.length > 100000) throw new Error('A single import is limited to 100,000 documents');
+    const unique = new Map();
+    for (let i = 0; i < source.length; i++){
+      const item = source[i];
+      const text = typeof item === 'string' ? item : item?.text;
+      if (typeof text !== 'string' || !text.trim()) throw new Error(`Document ${i + 1} has no text`);
+      if (text.length > 20000) throw new Error(`Document ${i + 1} is longer than 20,000 characters`);
+      const suppliedId = typeof item === 'object' && item ? item.chunk_id : null;
+      if (suppliedId && !/^[a-f0-9]{16,128}$/.test(suppliedId)) throw new Error(`Document ${i + 1} has an invalid chunk_id`);
+      const chunkId = suppliedId || await sha256(text);
+      unique.set(chunkId, {chunk_id: chunkId, text});
+      if ((i + 1) % 250 === 0) setImportStatus(`Preparing ${(i + 1).toLocaleString()} / ${source.length.toLocaleString()}…`);
+    }
+    importRows = Array.from(unique.values());
+    const duplicates = source.length - importRows.length;
+    setImportStatus(`${importRows.length.toLocaleString()} documents ready${duplicates ? ` · ${duplicates.toLocaleString()} duplicates skipped` : ''}`);
+    updateImportAction();
+  } catch (error){
+    importMode = null;
+    setImportStatus(error.message, true);
+  }
+}
+
+function selectOptions(element, columns, emptyLabel, selected){
+  const empty = emptyLabel === null ? '' : `<option value="">${esc(emptyLabel)}</option>`;
+  element.innerHTML = empty + columns.map(column =>
+    `<option value="${esc(column.name)}">${esc(column.name)} · ${esc(column.type)}</option>`).join('');
+  if (selected !== null && selected !== undefined) element.value = selected;
+}
+
+function syncParquetMapping(){
+  const hasLabel = Boolean($('parquet-label-column').value);
+  $('parquet-label-mode').disabled = !hasLabel || importBusy;
+  const threshold = hasLabel && $('parquet-label-mode').value === 'threshold';
+  $('parquet-label-threshold').hidden = !threshold;
+  $('parquet-label-threshold').disabled = !threshold || importBusy;
+  $('threshold-row').classList.toggle('binary', !threshold);
+  updateImportAction();
+}
+
+async function prepareParquet(file){
+  importMode = 'parquet';
+  setImportBusy(true);
+  setImportStatus('Uploading Parquet and reading schema…');
+  $('import-progress').style.width = '15%';
+  try{
+    parquetUpload = await api('/imports/parquet/inspect', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/vnd.apache.parquet', 'X-Filename': encodeURIComponent(file.name)},
+      body: file,
+    });
+    const columns = parquetUpload.columns || [];
+    const defaults = parquetUpload.defaults || {};
+    selectOptions($('parquet-text-column'), columns.filter(column => column.can_text), null, defaults.text_column);
+    selectOptions($('parquet-id-column'), columns.filter(column => column.can_id), 'Generate SHA-256 from text', defaults.id_column || '');
+    selectOptions($('parquet-label-column'), columns.filter(column => column.can_label), 'Do not import labels', defaults.label_column || '');
+    $('parquet-label-mode').value = defaults.label_mode || 'binary';
+    $('parquet-label-threshold').value = defaults.label_threshold ?? 3;
+    $('parquet-meta').textContent = `${parquetUpload.n_rows.toLocaleString()} rows · ${columns.length} columns · ${(parquetUpload.size_bytes / 1024 / 1024).toFixed(1)} MB`;
+    $('parquet-options').hidden = false;
+    $('import-progress').style.width = '35%';
+    setImportStatus('Parquet schema ready');
+  } catch (error){
+    parquetUpload = null;
+    setImportStatus(error.message, true);
+    $('import-progress').style.width = '0%';
+  } finally {
+    setImportBusy(false);
+    syncParquetMapping();
+  }
+}
+
+function setImportStatus(message, error=false){
+  $('import-status').textContent = message;
+  $('import-status').classList.toggle('error', error);
+}
+
+function updateImportAction(){
+  const parquetReady = importMode === 'parquet' && parquetUpload && $('parquet-text-column').value;
+  const rowsReady = importMode === 'rows' && importRows.length;
+  $('run-import').disabled = importBusy || !(parquetReady || rowsReady);
+}
+
+function setImportBusy(busy){
+  importBusy = busy;
+  updateImportAction();
+  $('cancel-import').disabled = busy;
+  $('close-import').disabled = busy;
+  $('import-file').disabled = busy;
+  $('import-shard-id').disabled = busy;
+  for (const id of ['parquet-text-column', 'parquet-id-column', 'parquet-label-column']) $(id).disabled = busy;
+  syncParquetMapping();
+}
+
+async function runImport(){
+  const shardId = $('import-shard-id').value.trim();
+  if (!/^[A-Za-z0-9_.:-]{1,64}$/.test(shardId)){
+    setImportStatus('Dataset ID must match [A-Za-z0-9_.:-] and be at most 64 characters', true);
+    return;
+  }
+  setImportBusy(true);
+  let inserted = 0;
+  try{
+    if (importMode === 'parquet'){
+      const labelColumn = $('parquet-label-column').value || null;
+      let threshold = null;
+      if (labelColumn && $('parquet-label-mode').value === 'threshold'){
+        threshold = Number($('parquet-label-threshold').value);
+        if (!Number.isFinite(threshold)) throw new Error('Label threshold must be a number');
+      }
+      $('import-progress').style.width = '55%';
+      setImportStatus(`Importing ${parquetUpload.n_rows.toLocaleString()} Parquet rows…`);
+      const result = await api(`/shards/${encodeURIComponent(shardId)}/imports/parquet`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({
+          upload_token: parquetUpload.upload_token,
+          text_column: $('parquet-text-column').value,
+          id_column: $('parquet-id-column').value || null,
+          label_column: labelColumn,
+          label_threshold: threshold,
+        }),
+      });
+      inserted = result.new;
+      $('import-progress').style.width = '100%';
+      const skipped = result.skipped_empty + result.skipped_oversized;
+      setImportStatus(`Imported ${inserted.toLocaleString()} documents · ${result.labeled.toLocaleString()} labels${skipped ? ` · ${skipped.toLocaleString()} skipped` : ''}`);
+      parquetUpload = null;
+    } else {
+      for (let start = 0; start < importRows.length; start += 5000){
+        const batch = importRows.slice(start, start + 5000);
+        const result = await api(`/shards/${encodeURIComponent(shardId)}/chunks`, {
+          method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({chunks: batch}),
+        });
+        inserted += result.new;
+        const done = Math.min(start + batch.length, importRows.length);
+        $('import-progress').style.width = `${done / importRows.length * 100}%`;
+        setImportStatus(`Uploading ${done.toLocaleString()} / ${importRows.length.toLocaleString()}…`);
+      }
+      setImportStatus(`Imported ${inserted.toLocaleString()} new documents`);
+    }
+    datasetsLoaded = false;
+    datasetState.offset = 0;
+    datasetState.query = '';
+    await loadDatasets(shardId);
+    $('import-dialog').close();
+  } catch (error){
+    setImportStatus(error.message, true);
+  } finally {
+    setImportBusy(false);
+  }
+}
+
+function nodeProgress(n){
+  const load = n.load || {};
+  if (finite(load.progress_pct)) return clamp(load.progress_pct, 0, 100);
+  if (finite(load.docs_processed) && finite(load.docs_total) && load.docs_total > 0)
+    return clamp(load.docs_processed / load.docs_total * 100, 0, 100);
+  return null;
+}
+
+function nodeMetric(n, key){
+  return key === 'progress_pct' ? nodeProgress(n) : (finite((n.load || {})[key]) ? n.load[key] : null);
+}
+
+function formatDuration(seconds){
+  if (!finite(seconds)) return '—';
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.floor(s/60)}m ${s%60}s`;
+  return `${Math.floor(s/3600)}h ${Math.floor((s%3600)/60)}m`;
+}
+
+function formatMetric(key, value){
+  if (!finite(value)) return '—';
+  if (key.endsWith('_pct')) return `${value.toFixed(1)}%`;
+  if (key === 'docs_per_sec') return `${value.toFixed(1)}/s`;
+  if (key === 'train_loss') return value.toFixed(4);
+  return value.toLocaleString();
+}
+
+function trustPill(t){
+  if (t === 'pending') return `<span class="pill warn"><span class="d"></span>pending</span>`;
+  return `<span class="pill off"><span class="d"></span>unknown</span>`;
+}
+
+function renderSummary(d){
+  const online = d.nodes.filter(n => n.online).length;
+  const open = d.rounds.filter(r => r.status === 'open').length;
+  const running = d.campaigns.filter(c => c.status === 'running').length;
+  $('summary').innerHTML = [
+    ['nodes online', `${online} / ${d.nodes.length}`],
+    ['rounds open', `${open} / ${d.rounds.length}`],
+    ['campaigns running', `${running} / ${d.campaigns.length}`],
+    ['shards', d.shards.length],
+  ].map(([l, n]) => `<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+}
+
+function renderCampaigns(d){
+  $('campaigns-count').textContent = `${d.campaigns.length} total`;
+  if (!d.campaigns.length){
+    $('campaigns').innerHTML = `<div class="empty">No campaigns yet — POST /campaigns to start one.</div>`;
+    return;
+  }
+  $('campaigns').innerHTML = d.campaigns.map(c => {
+    const pill = c.status === 'done' ? `<span class="pill good"><span class="d"></span>done</span>`
+               : `<span class="pill warn"><span class="d"></span>running</span>`;
+    const labelPct = Math.min(100, (c.n_labels / c.n_labels_target) * 100);
+    const steps = Array.from({length: c.schedule_len}, (_, i) =>
+      `<div class="step ${i < c.completed_rounds ? 'done' : ''}"></div>`).join('');
+    const submitted = c.status === 'running'
+      ? `<span>${c.partitions_submitted} / ${c.n_partitions} submitted</span>` : '';
+    return `<div class="card clickable" data-campaign="${esc(c.campaign_id)}">
+      <div class="row"><span class="id">${esc(c.campaign_id)}</span>${pill}</div>
+      <div class="sub"><span>${esc(c.mode)} · ${c.n_partitions}</span><span>train ${esc(c.train_mode || 'fresh')}</span><span>${esc(c.strategy)}</span><span>step ${c.current_step} / ${c.schedule_len}</span></div>
+      <div class="sub"><span>shard ${esc(c.shard_id)}</span>${submitted}</div>
+      <div>
+        <div class="bar-label"><span>labels</span><span>${c.n_labels} / ${c.n_labels_target}</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${labelPct}%"></div></div>
+      </div>
+      <div>
+        <div class="bar-label"><span>rounds completed</span><span>${c.completed_rounds} / ${c.schedule_len}</span></div>
+        <div class="steps">${steps}</div>
+      </div>
+      ${c.n_selected != null ? `<div class="sub">selected ${c.n_selected} chunks</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderNodes(d){
+  $('nodes-count').textContent = `${d.nodes.length} registered`;
+  if (!d.nodes.length){
+    $('nodes').innerHTML = `<div class="empty">No nodes yet — POST /nodes/handshake to enroll one.</div>`;
+    return;
+  }
+  $('nodes').innerHTML = d.nodes.map(n => {
+    const load = n.load || {};
+    const progress = nodeProgress(n);
+    const state = !n.online ? '<span class="pill off"><span class="d"></span>offline</span>'
+                : n.status === 'busy' ? '<span class="pill warn"><span class="d"></span>busy</span>'
+                : '<span class="pill good"><span class="d"></span>idle</span>';
+    const docs = finite(load.docs_processed) && finite(load.docs_total)
+      ? `<span>${load.docs_processed.toLocaleString()} / ${load.docs_total.toLocaleString()} docs</span>` : '';
+    const live = [
+      finite(load.docs_per_sec) ? `${formatMetric('docs_per_sec', load.docs_per_sec)}` : '',
+      finite(load.eta_s) ? `ETA ${formatDuration(load.eta_s)}` : '',
+      finite(load.cpu_pct) ? `CPU ${formatMetric('cpu_pct', load.cpu_pct)}` : '',
+      finite(load.gpu_util_pct) ? `GPU ${formatMetric('gpu_util_pct', load.gpu_util_pct)}` : '',
+    ].filter(Boolean).map(v => `<span>${v}</span>`).join('');
+    return `<div class="card">
+      <div class="row"><span class="id">${esc(n.node_id)}</span>${state}</div>
+      <div class="sub"><span>pending ${n.pending_tasks}</span><span>${n.gpus} gpu${n.gpus===1?'':'s'}</span></div>
+      ${(n.round_id || n.stage) ? `<div class="sub">${n.round_id ? `<span>round ${esc(n.round_id)}</span>` : ''}${n.stage ? `<span>${esc(n.stage)}</span>` : ''}</div>` : ''}
+      ${progress != null ? `<div><div class="bar-label"><span>task progress</span><span>${progress.toFixed(1)}%</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${progress}%"></div></div></div>` : ''}
+      ${(docs || live) ? `<div class="sub">${docs}${live}</div>` : ''}
+      <div class="tags">${n.model_kinds.map(k => `<span class="tag">${esc(k)}</span>`).join('') || '<span class="tag">—</span>'}</div>
+    </div>`;
+  }).join('');
+}
+
+function sampleNodeTelemetry(nodes){
+  for (const n of nodes){
+    if (!n.last_heartbeat || lastNodeHeartbeat[n.node_id] === n.last_heartbeat) continue;
+    lastNodeHeartbeat[n.node_id] = n.last_heartbeat;
+    for (const [key] of NODE_METRICS){
+      const value = nodeMetric(n, key);
+      if (value == null) continue;
+      const series = history.nodeLoad[`${n.node_id}:${key}`] ||= [];
+      series.push(value);
+      if (series.length > MAX_NODE_HISTORY) series.shift();
+    }
+  }
+}
+
+function latestNodeMetric(n, key){
+  const current = nodeMetric(n, key);
+  if (current != null) return current;
+  const series = history.nodeLoad[`${n.node_id}:${key}`] || [];
+  return series.length ? series[series.length - 1] : null;
+}
+
+async function hydrateTelemetryHistory(){
+  const res = await fetch(`/telemetry/history?limit=${MAX_NODE_HISTORY}`, {cache: 'no-store'});
+  if (!res.ok) throw new Error(`telemetry history: HTTP ${res.status}`);
+  const persisted = await res.json();
+  for (const [nodeId, samples] of Object.entries(persisted.nodes || {})){
+    for (const sample of samples){
+      sampleNodeTelemetry([{
+        node_id: nodeId,
+        last_heartbeat: sample.received_at,
+        load: sample.load || {},
+      }]);
+    }
+  }
+  telemetryHistoryLoaded = true;
+}
+
+function renderTelemetry(d){
+  sampleNodeTelemetry(d.nodes);
+  const nodes = d.nodes.filter(n => NODE_METRICS.some(([key]) => latestNodeMetric(n, key) != null));
+  $('telemetry-count').textContent = `${nodes.length} with history`;
+  $('telemetry').innerHTML = nodes.length ? nodes.map(n => {
+    const metrics = NODE_METRICS.map(([key, label]) => [key, label, latestNodeMetric(n, key)])
+      .filter(([, , value]) => value != null);
+    const phase = n.stage ? ` · ${n.stage}` : '';
+    const status = n.online ? `${n.status}${phase} · ${formatDuration(n.heartbeat_age_s)} ago` : 'stale · node offline';
+    return `<div class="telemetry-card">
+      <div class="head"><span class="title">${esc(n.node_id)}</span><span class="count-tag">${esc(status)}</span></div>
+      <div class="telemetry-metrics">${metrics.map(([key, label, value]) => {
+        const values = history.nodeLoad[`${n.node_id}:${key}`] || [value];
+        const color = key === 'train_loss' ? 'var(--accent-2)' : 'var(--accent)';
+        return `<div class="metric-cell"><div class="metric-head"><span>${esc(label)}</span>
+          <span class="metric-value">${formatMetric(key, value)}</span></div>${sparkline(values, color)}</div>`;
+      }).join('')}</div>
+    </div>`;
+  }).join('') : `<div class="empty">No heartbeat telemetry yet.</div>`;
+}
+
+function renderRounds(d){
+  $('rounds-count').textContent = `${d.rounds.length} total`;
+  $('rounds').innerHTML = d.rounds.length ? d.rounds.map(r => {
+    const c = r.participants;
+    const total = r.n_participants || 1;
+    const seg = (k) => (c[k] || 0) / total * 100;
+    const statusPill = r.status === 'open' ? `<span class="pill warn"><span class="d"></span>open</span>`
+                      : `<span class="pill off"><span class="d"></span>closed</span>`;
+    const chips = r.submissions.map(s => `<span class="chip ${s.trust}" title="${
+      Object.entries(s.agg_stats).map(([k,v])=>`${k}=${v}`).join(', ')}">${esc(s.node_id)}</span>`).join('');
+    return `<tr>
+      <td>${esc(r.round_id)}</td>
+      <td>${r.model ? esc(r.model.kind) + ' · ' + esc(r.model.id) + (r.operation ? ' · ' + esc(r.operation.train) : '') : '—'}</td>
+      <td>${statusPill}</td>
+      <td><div class="seg-bar">
+        <div class="seg assigned" style="width:${seg('assigned')}%"></div>
+        <div class="seg accepted" style="width:${seg('accepted')}%"></div>
+        <div class="seg submitted" style="width:${seg('submitted')}%"></div>
+      </div></td>
+      <td><div class="chips">${chips || '—'}</div></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="5"><div class="empty">No rounds yet — POST /rounds or start a campaign.</div></td></tr>`;
+}
+
+function renderShards(d){
+  $('shards-count').textContent = `${d.shards.length} total`;
+  $('shards').innerHTML = d.shards.length ? d.shards.map(s => {
+    const pct = s.n_chunks ? Math.min(100, s.n_labels / s.n_chunks * 100) : 0;
+    return `<tr>
+      <td>${esc(s.shard_id)}</td><td>${s.n_chunks}</td><td>${s.n_labels}</td>
+      <td style="width:160px"><div class="bar-track"><div class="bar-fill amber" style="width:${pct}%"></div></div></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="4"><div class="empty">No shards yet — POST /shards/{shard_id}/chunks to load one.</div></td></tr>`;
+}
+
+function sparkline(values, color){
+  const W = 240, H = 40, pad = 4;
+  if (values.length < 2){
+    return `<svg viewBox="0 0 ${W} ${H}"><text x="${W/2}" y="${H/2+4}" text-anchor="middle"
+      font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink-faint)">collecting…</text></svg>`;
+  }
+  const max = Math.max(...values, 1), min = Math.min(...values, 0);
+  const range = (max - min) || 1;
+  const x = i => pad + (W - 2*pad) * i / (values.length - 1);
+  const y = v => H - pad - (H - 2*pad) * (v - min) / range;
+  const d = values.map((v,i) => `${i===0?'M':'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const area = `${d} L${x(values.length-1).toFixed(1)},${H-pad} L${x(0).toFixed(1)},${H-pad} Z`;
+  const lastX = x(values.length-1), lastY = y(values[values.length-1]);
+  return `<svg viewBox="0 0 ${W} ${H}">
+    <path d="${area}" fill="${color}" opacity="0.12"/>
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="3" fill="${color}"/>
+  </svg>`;
+}
+
+function renderSparks(d){
+  const online = d.nodes.filter(n => n.online).length;
+  const totalLabels = d.shards.reduce((a,s) => a + s.n_labels, 0);
+  const totalSelected = d.campaigns.reduce((a,c) => a + (c.n_selected || 0), 0);
+  for (const [key, val] of [['onlineNodes', online], ['totalLabels', totalLabels], ['selectedTotal', totalSelected]]){
+    history[key].push(val);
+    if (history[key].length > MAX_HISTORY) history[key].shift();
+  }
+  const cards = [
+    ['Nodes online', history.onlineNodes, online, 'var(--accent)'],
+    ['Oracle labels, all shards', history.totalLabels, totalLabels, 'var(--accent-2)'],
+    ['Chunks selected, all campaigns', history.selectedTotal, totalSelected, 'var(--accent)'],
+  ];
+  $('sparks').innerHTML = cards.map(([title, vals, val, color]) => `<div class="spark-card">
+    <div class="head"><span class="title">${title}</span><span class="val">${val}</span></div>
+    ${sparkline(vals, color)}
+  </div>`).join('');
+}
+
+function setCampaignStatus(message, error=false){
+  $('campaign-status').textContent = message;
+  $('campaign-status').classList.toggle('error', error);
+}
+
+function setCampaignBusy(busy){
+  campaignBusy = busy;
+  $('run-campaign').disabled = busy;
+  $('cancel-campaign').disabled = busy;
+  $('close-campaign').disabled = busy;
+}
+
+function openCampaignDialog(){
+  const d = lastMetrics;
+  const shards = d?.shards || [];
+  const nodes = d?.nodes || [];
+
+  $('campaign-shard').innerHTML = shards.length
+    ? shards.map(s => `<option value="${esc(s.shard_id)}">${esc(s.shard_id)} · ${s.n_chunks.toLocaleString()} chunks</option>`).join('')
+    : `<option value="">no shards loaded</option>`;
+
+  $('campaign-nodes').innerHTML = nodes.length ? nodes.map(n =>
+    `<label style="display:flex; align-items:center; gap:8px; font:12px var(--font-mono);">
+      <input type="checkbox" class="campaign-node-check" value="${esc(n.node_id)}" checked>
+      ${esc(n.node_id)} <span style="color:var(--ink-faint)">(${n.model_kinds.map(esc).join(', ') || '—'})</span>
+    </label>`).join('') : `<div class="empty">No registered nodes.</div>`;
+
+  const campaignIds = (d?.campaigns || []).map(c => c.campaign_id).sort();
+  $('campaign-clone').innerHTML = `<option value="">— start from scratch —</option>` +
+    campaignIds.map(id => `<option value="${esc(id)}">${esc(id)}</option>`).join('');
+
+  $('campaign-id').value = '';
+  $('campaign-mode').value = 'sharded';
+  $('campaign-train-mode').value = 'fresh';
+  $('campaign-model-kind').value = 'classifier';
+  $('campaign-model-id').value = '';
+  $('campaign-metrics').value = 'n_chunks, eval_spearman, n_dedup_dropped';
+  $('campaign-schedule').value = '';
+  $('campaign-strategy').value = 'cutoff';
+  $('campaign-k-frac').value = '0.1';
+  $('campaign-good-min').value = '';
+  $('campaign-seed').value = '0';
+  setCampaignStatus('');
+  setCampaignBusy(false);
+  $('campaign-dialog').showModal();
+  $('campaign-id').focus();
+}
+
+async function applyCampaignClone(campaignId){
+  if (!campaignId) return;
+  setCampaignStatus(`Loading ${campaignId}…`);
+  try{
+    const c = await api(`/campaigns/${encodeURIComponent(campaignId)}`);
+    const spec = c.spec;
+    $('campaign-shard').value = c.shard_id;
+    $('campaign-mode').value = spec.mode || 'sharded';
+    $('campaign-train-mode').value = spec.train_mode || 'fresh';
+    $('campaign-model-kind').value = spec.model.kind;
+    $('campaign-model-id').value = spec.model.id;
+    $('campaign-metrics').value = (spec.metrics || []).join(', ');
+    $('campaign-schedule').value = spec.schedule.join(', ');
+    $('campaign-strategy').value = spec.strategy;
+    $('campaign-k-frac').value = spec.k_frac;
+    $('campaign-good-min').value = spec.good_min ?? '';
+    $('campaign-seed').value = spec.seed;
+    const wanted = new Set(spec.node_ids);
+    document.querySelectorAll('.campaign-node-check').forEach(el => { el.checked = wanted.has(el.value); });
+    setCampaignStatus(`Copied settings from ${campaignId} — pick a new Campaign ID`);
+  } catch (error){
+    setCampaignStatus(`Could not load ${campaignId}: ${error.message}`, true);
+  }
+}
+
+async function runCreateCampaign(){
+  const campaignId = $('campaign-id').value.trim();
+  const shardId = $('campaign-shard').value;
+  const nodeIds = Array.from(document.querySelectorAll('.campaign-node-check:checked')).map(el => el.value);
+  const scheduleRaw = $('campaign-schedule').value.trim();
+  const metricsRaw = $('campaign-metrics').value.trim();
+  const kFrac = Number($('campaign-k-frac').value);
+  const goodMinRaw = $('campaign-good-min').value.trim();
+  const seed = Number($('campaign-seed').value || 0);
+
+  if (!/^[A-Za-z0-9_.:-]{1,64}$/.test(campaignId)){
+    setCampaignStatus('Campaign ID must match [A-Za-z0-9_.:-] and be at most 64 characters', true); return;
+  }
+  if (!shardId){ setCampaignStatus('Pick a dataset (shard) first', true); return; }
+  if (!nodeIds.length){ setCampaignStatus('Select at least one node', true); return; }
+  const modelId = $('campaign-model-id').value.trim();
+  if (!/^[A-Za-z0-9_.:-]{1,64}$/.test(modelId)){
+    setCampaignStatus('Model ID must match [A-Za-z0-9_.:-] and be at most 64 characters', true); return;
+  }
+  const schedule = scheduleRaw.split(',').map(s => s.trim()).filter(Boolean).map(Number);
+  if (!schedule.length || schedule.some(n => !Number.isInteger(n) || n <= 0)){
+    setCampaignStatus('Schedule must be a comma-separated list of positive integers', true); return;
+  }
+  if (schedule.some((n, i) => i > 0 && n <= schedule[i-1])){
+    setCampaignStatus('Schedule must be strictly increasing', true); return;
+  }
+  if (!Number.isFinite(kFrac) || kFrac <= 0 || kFrac > 1){
+    setCampaignStatus('k_frac must be a number in (0, 1]', true); return;
+  }
+  let goodMin = null;
+  if (goodMinRaw){
+    goodMin = Number(goodMinRaw);
+    if (!Number.isInteger(goodMin)){ setCampaignStatus('good_min must be an integer', true); return; }
+  }
+  const metrics = metricsRaw ? metricsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+  setCampaignBusy(true);
+  setCampaignStatus('Creating campaign…');
+  try{
+    await api('/campaigns', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({
+        campaign_id: campaignId,
+        shard_id: shardId,
+        mode: $('campaign-mode').value,
+        model: {kind: $('campaign-model-kind').value, id: modelId},
+        metrics,
+        node_ids: nodeIds,
+        schedule,
+        train_mode: $('campaign-train-mode').value,
+        strategy: $('campaign-strategy').value,
+        k_frac: kFrac,
+        good_min: goodMin,
+        seed,
+      }),
+    });
+    setCampaignStatus(`Campaign ${campaignId} created`);
+    $('campaign-dialog').close();
+    tick();
+  } catch (error){
+    setCampaignStatus(error.message, true);
+  } finally {
+    setCampaignBusy(false);
+  }
+}
+
+$('open-campaign').addEventListener('click', openCampaignDialog);
+$('campaign-clone').addEventListener('change', event => applyCampaignClone(event.target.value));
+$('close-campaign').addEventListener('click', () => { if (!campaignBusy) $('campaign-dialog').close(); });
+$('cancel-campaign').addEventListener('click', () => { if (!campaignBusy) $('campaign-dialog').close(); });
+$('campaign-dialog').addEventListener('cancel', event => { if (campaignBusy) event.preventDefault(); });
+$('run-campaign').addEventListener('click', runCreateCampaign);
+
+// --- Campaign detail: round-by-round timeline, quality trend, node stage race -----------
+const STAGE_ORDER = ['downloading', 'training', 'scoring', 'uploading'];
+const campaignDetail = { id: null, timer: null };
+
+function chip(text){ return `<span class="cd-chip">${esc(text)}</span>`; }
+
+function qualityChart(points){
+  // points: [{step, avg, values:[...]}]
+  if (points.length < 2){
+    const only = points[0];
+    return `<div class="cd-empty">${only ? `round 1 avg ${only.avg.toFixed(3)} — need another round to trend` : 'no submissions yet'}</div>`;
+  }
+  const W = 860, H = 140, padL = 36, padR = 12, padT = 14, padB = 26;
+  const vals = points.flatMap(p => p.values);
+  const max = Math.max(...vals, 0.01), min = Math.min(...vals, 0);
+  const range = (max - min) || 1;
+  const x = i => padL + (W - padL - padR) * (points.length === 1 ? 0 : i / (points.length - 1));
+  const y = v => H - padB - (H - padT - padB) * (v - min) / range;
+  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.avg).toFixed(1)}`).join(' ');
+  const dots = points.map((p, i) => {
+    const nodeDots = p.values.map(v => `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.5" fill="var(--ink-faint)" opacity="0.6"/>`).join('');
+    return `${nodeDots}<circle cx="${x(i).toFixed(1)}" cy="${y(p.avg).toFixed(1)}" r="4" fill="var(--accent)"/>`;
+  }).join('');
+  const labels = points.map((p, i) =>
+    `<text x="${x(i).toFixed(1)}" y="${H - 6}" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="var(--ink-faint)">r${p.step}</text>`).join('');
+  const yTicks = [min, (min + max) / 2, max].map(v =>
+    `<text x="4" y="${(y(v) + 3).toFixed(1)}" font-family="IBM Plex Mono, monospace" font-size="9" fill="var(--ink-faint)">${v.toFixed(2)}</text>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%; height:${H}px; display:block; overflow:visible;">
+    ${yTicks}
+    <path d="${linePath}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dots}
+    ${labels}
+  </svg>`;
+}
+
+function stageSegmentsFromSamples(samples, windowEnd){
+  // samples: oldest-first [{received_at, stage, status}] all for one node+round
+  if (!samples.length) return [];
+  const segs = [];
+  for (let i = 0; i < samples.length; i++){
+    const start = samples[i].received_at;
+    const end = i + 1 < samples.length ? samples[i + 1].received_at : windowEnd;
+    const stage = samples[i].stage || (samples[i].status === 'busy' ? 'training' : 'idle');
+    if (end <= start) continue;
+    const last = segs[segs.length - 1];
+    if (last && last.stage === stage) last.end = end;
+    else segs.push({stage, start, end});
+  }
+  return segs;
+}
+
+function stageRaceRow(nodeId, segs, spanStart, spanEnd){
+  const span = Math.max(spanEnd - spanStart, 1);
+  const bars = segs.length ? segs.map(s => {
+    const pct = Math.max(0.6, (s.end - s.start) / span * 100);
+    return `<div class="stage-seg" data-stage="${esc(s.stage)}" style="width:${pct}%" title="${esc(s.stage)} · ${formatDuration(s.end - s.start)}"></div>`;
+  }).join('') : `<div class="stage-seg" data-stage="none" style="width:100%"></div>`;
+  return `<div class="stage-row"><span class="node-name">${esc(nodeId)}</span><div class="stage-track">${bars}</div></div>`;
+}
+
+async function loadCampaignDetail(id){
+  const [campaign, telemetry] = await Promise.all([
+    api(`/campaigns/${encodeURIComponent(id)}`),
+    fetch(`/telemetry/history?limit=2000`, {cache: 'no-store'}).then(r => r.json()),
+  ]);
+  const steps = campaign.rounds_done || 1;
+  const roundIds = Array.from({length: steps}, (_, i) => `${id}-r${i + 1}`);
+  const rounds = await Promise.all(roundIds.map(rid =>
+    api(`/rounds/${encodeURIComponent(rid)}`).catch(() => null)));
+  renderCampaignDetail(campaign, rounds.filter(Boolean), telemetry.nodes || {});
+}
+
+function renderCampaignDetail(c, rounds, telemetryByNode){
+  const spec = c.spec;
+  $('cd-title').textContent = c.campaign_id;
+  $('cd-eyebrow').textContent = `${spec.mode} campaign · shard ${c.shard_id}`;
+  $('cd-status').innerHTML = c.status === 'done'
+    ? `<span class="pill good"><span class="d"></span>done</span>`
+    : `<span class="pill warn"><span class="d"></span>running</span>`;
+  $('cd-chips').innerHTML = [
+    `${spec.model.kind} · ${spec.model.id}`, `strategy ${spec.strategy}`, `train ${spec.train_mode}`,
+    `k_frac ${spec.k_frac}`, `${spec.node_ids.length} nodes`, `seed ${spec.seed}`,
+  ].map(chip).join('');
+
+  const nPartitions = spec.n_partitions;
+  const target = spec.schedule[Math.min(c.rounds_done, spec.schedule.length) - 1] || spec.schedule[0];
+  const labelPct = Math.min(100, (target * nPartitions) / (spec.schedule[spec.schedule.length - 1] * nPartitions) * 100);
+  $('cd-labels-text').textContent = `${target} / ${spec.schedule[spec.schedule.length - 1]} per partition · step ${c.rounds_done} / ${spec.schedule.length}`;
+  $('cd-labels-fill').style.width = `${labelPct}%`;
+
+  const qualityPoints = rounds.map((r, i) => {
+    const values = r.nodes.map(s => s.eval_spearman).filter(v => typeof v === 'number');
+    return values.length ? {step: i + 1, avg: values.reduce((a, b) => a + b, 0) / values.length, values} : null;
+  }).filter(Boolean);
+  $('cd-quality-chart').innerHTML = qualityChart(qualityPoints);
+
+  const now = Date.now() / 1000;
+  $('cd-rounds').innerHTML = rounds.map((r, i) => {
+    const step = i + 1;
+    const roundTarget = spec.schedule[step - 1];
+    const subByNode = Object.fromEntries(r.nodes.map(s => [s.node_id, s]));
+    const nodeSamples = {};
+    for (const nodeId of spec.node_ids){
+      nodeSamples[nodeId] = (telemetryByNode[nodeId] || []).filter(s => s.round_id === r.round_id);
+    }
+    const anySamples = Object.values(nodeSamples).some(arr => arr.length);
+    const allSubmitted = spec.node_ids.every(id => subByNode[id]);
+    const isLive = r.status === 'open' && !allSubmitted;
+    const knownTimes = Object.values(nodeSamples).flatMap(a => a.map(s => s.received_at))
+      .concat(r.nodes.map(s => s.received_at));
+    const spanStart = anySamples ? Math.min(...knownTimes) : now;
+    const spanEnd = anySamples ? (isLive ? Math.max(now, ...knownTimes) : Math.max(...knownTimes)) : now;
+    const race = anySamples ? spec.node_ids.map(nodeId => {
+      const segs = stageSegmentsFromSamples(nodeSamples[nodeId], subByNode[nodeId] ? subByNode[nodeId].received_at || spanEnd : spanEnd);
+      return stageRaceRow(nodeId, segs, spanStart, spanEnd);
+    }).join('') : `<div class="cd-empty">no live telemetry retained for this round</div>`;
+    const chips = spec.node_ids.map(nodeId => {
+      const s = subByNode[nodeId];
+      if (!s) return `<span class="chip off" title="not submitted yet">${esc(nodeId)}</span>`;
+      const spearman = typeof s.eval_spearman === 'number' ? s.eval_spearman.toFixed(3) : '—';
+      return `<span class="chip ${s.trust}" title="eval_spearman=${spearman}, n_scores=${s.n_scores}">${esc(nodeId)} · ${spearman}</span>`;
+    }).join('');
+    return `<div class="cd-round">
+      <div class="cd-round-head">
+        <span class="cd-round-title">round ${step} / ${spec.schedule.length} — ${esc(r.round_id)}</span>
+        <span class="cd-round-sub">${r.status} · target ${roundTarget} labels/partition · ${r.nodes.length}/${nPartitions} submitted</span>
+      </div>
+      <div class="chips">${chips}</div>
+      <div style="display:flex; flex-direction:column; gap:4px;">${race}</div>
+    </div>`;
+  }).join('') || `<div class="cd-empty">no rounds yet</div>`;
+
+  if (c.result){
+    $('cd-result-section').hidden = false;
+    $('cd-result').innerHTML = [
+      [c.result.selected.length, 'chunks selected'],
+      [c.result.n_known_good, 'known good'],
+      [c.result.n_labels, 'oracle labels used'],
+    ].map(([v, l]) => `<div class="dataset-stat"><strong>${v.toLocaleString()}</strong><span>${l}</span></div>`).join('');
+  } else {
+    $('cd-result-section').hidden = true;
+  }
+}
+
+function openCampaignDetail(id){
+  campaignDetail.id = id;
+  $('campaign-detail-dialog').showModal();
+  const refresh = () => loadCampaignDetail(id).catch(err => {
+    $('cd-rounds').innerHTML = `<div class="cd-empty">failed to load: ${esc(err.message)}</div>`;
+  });
+  refresh();
+  clearInterval(campaignDetail.timer);
+  campaignDetail.timer = setInterval(refresh, 2000);
+}
+
+function closeCampaignDetail(){
+  clearInterval(campaignDetail.timer);
+  campaignDetail.timer = null;
+  $('campaign-detail-dialog').close();
+}
+
+$('campaigns').addEventListener('click', event => {
+  const card = event.target.closest('.card[data-campaign]');
+  if (card) openCampaignDetail(card.dataset.campaign);
+});
+$('close-campaign-detail').addEventListener('click', closeCampaignDetail);
+$('campaign-detail-dialog').addEventListener('cancel', closeCampaignDetail);
+
+document.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => setWorkspace(tab.dataset.view)));
+$('open-import').addEventListener('click', () => {
+  importRows = [];
+  importMode = null;
+  parquetUpload = null;
+  $('import-file').value = '';
+  $('import-file-label').textContent = 'Choose file';
+  $('parquet-options').hidden = true;
+  $('import-progress').style.width = '0%';
+  setImportStatus('');
+  $('run-import').disabled = true;
+  $('import-dialog').showModal();
+  $('import-shard-id').focus();
+});
+$('close-import').addEventListener('click', () => { if (!importBusy) $('import-dialog').close(); });
+$('cancel-import').addEventListener('click', () => { if (!importBusy) $('import-dialog').close(); });
+$('import-dialog').addEventListener('cancel', event => { if (importBusy) event.preventDefault(); });
+$('import-file').addEventListener('change', event => prepareImport(event.target.files[0]));
+$('parquet-text-column').addEventListener('change', updateImportAction);
+$('parquet-id-column').addEventListener('change', updateImportAction);
+$('parquet-label-column').addEventListener('change', syncParquetMapping);
+$('parquet-label-mode').addEventListener('change', syncParquetMapping);
+$('parquet-label-threshold').addEventListener('input', updateImportAction);
+$('run-import').addEventListener('click', runImport);
+$('refresh-dataset').addEventListener('click', () => loadDatasets(datasetState.selected).catch(showDatasetError));
+$('dataset-prev').addEventListener('click', () => {
+  datasetState.offset = Math.max(0, datasetState.offset - datasetState.limit);
+  loadDatasetPage().catch(showDatasetError);
+});
+$('dataset-next').addEventListener('click', () => {
+  datasetState.offset += datasetState.limit;
+  loadDatasetPage().catch(showDatasetError);
+});
+$('dataset-search').addEventListener('input', event => {
+  clearTimeout(datasetSearchTimer);
+  datasetSearchTimer = setTimeout(() => {
+    datasetState.query = event.target.value.trim();
+    datasetState.offset = 0;
+    loadDatasetPage().catch(showDatasetError);
+  }, 250);
+});
+
+async function tick(){
+  try{
+    const res = await fetch('/metrics.json', {cache: 'no-store'});
+    if (!res.ok) throw new Error(`metrics: HTTP ${res.status}`);
+    const d = await res.json();
+    lastMetrics = d;
+    if (!telemetryHistoryLoaded) await hydrateTelemetryHistory();
+    $('asof').textContent = 'updated ' + new Date(d.generated_at * 1000).toLocaleTimeString();
+    renderSummary(d); renderCampaigns(d); renderNodes(d); renderTelemetry(d); renderRounds(d); renderShards(d); renderSparks(d);
+  } catch (e){
+    $('asof').textContent = 'connection lost, retrying…';
+  }
+}
+tick();
+setInterval(tick, 2000);
+</script>
+</body>
+</html>

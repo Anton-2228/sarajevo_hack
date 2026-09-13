@@ -1,0 +1,4 @@
+# tools/proxy_rounds_sim.py only; the control plane itself does not need these
+fasttext>=0.9.3
+pyarrow>=15
+numpy>=1.26
