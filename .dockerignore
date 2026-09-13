@@ -1,0 +1,10 @@
+.venv/
+.git/
+.pytest_cache/
+.ruff_cache/
+data/
+tests/
+scripts/
+uv.lock
+**/__pycache__/
+*.pyc

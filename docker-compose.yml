@@ -1,0 +1,83 @@
+# Four nodes, each on an explicit 1 core / 1 GiB budget.
+#
+# This is not one of the presets (src/node/gui/presets.py): `medium` on this
+# host -- 12 logical cores, 14.97 GiB -- would resolve to 6 cores / 4.0 GiB.
+# 1/1 is what a `medium` node would get on a 2-core, 2 GiB machine.
+#
+# The budget is passed explicitly because psutil inside a container reads the
+# *host* /proc: left to auto-detect, the agent would claim the whole box.
+#
+# No oversubscription: four single-core cpusets on a 12-core machine, with
+# cores 4-11 left to the operator. pick_core_ids() starts from the affinity
+# mask it is allowed to use, so each node pins to exactly its own core.
+#
+# Regenerate the cpuset/--cores/--ram numbers if you move this to another host.
+
+x-node: &node
+  build:
+    context: .
+    dockerfile: docker/Dockerfile
+  image: sarajevo-node:latest
+  restart: unless-stopped
+  environment: &node-env
+    # Empty falls through to DEFAULT_SERVER in src/node/agent/config.py.
+    NODE_AGENT_SERVER: "${NODE_SERVER:-}"
+    NODE_AGENT_LOG_LEVEL: "${NODE_LOG_LEVEL:-info}"
+    NODE_AGENT_CORES: "1"
+    NODE_AGENT_RAM_GB: "1"
+    NODE_AGENT_STATE_DIR: /var/lib/node-agent
+  # The agent caps its own training child at 80% of the budget; this is the
+  # outer fence for the rest of the container.
+  mem_limit: 1g
+  command: ["run"]
+
+services:
+  node-1:
+    <<: *node
+    container_name: node-1
+    hostname: node-1
+    cpuset: "0"
+    environment:
+      <<: *node-env
+      NODE_AGENT_NAME: node-01
+    volumes:
+      - node1-state:/var/lib/node-agent
+
+  node-2:
+    <<: *node
+    container_name: node-2
+    hostname: node-2
+    cpuset: "1"
+    environment:
+      <<: *node-env
+      NODE_AGENT_NAME: node-02
+    volumes:
+      - node2-state:/var/lib/node-agent
+
+  node-3:
+    <<: *node
+    container_name: node-3
+    hostname: node-3
+    cpuset: "2"
+    environment:
+      <<: *node-env
+      NODE_AGENT_NAME: node-03
+    volumes:
+      - node3-state:/var/lib/node-agent
+
+  node-4:
+    <<: *node
+    container_name: node-4
+    hostname: node-4
+    cpuset: "3"
+    environment:
+      <<: *node-env
+      NODE_AGENT_NAME: node-04
+    volumes:
+      - node4-state:/var/lib/node-agent
+
+volumes:
+  node1-state:
+  node2-state:
+  node3-state:
+  node4-state:

@@ -1,0 +1,47 @@
+[project]
+name = "sarajevo-node"
+version = "0.1.0"
+description = "Node core: fastText classifier distilling LLM scores"
+readme = "README.md"
+# fasttext-community ships wheels for 3.9-3.13 only. The system python here is 3.14,
+# which is why .python-version pins 3.12 and uv provisions its own interpreter.
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "fasttext-community>=0.11.7",
+    "numpy>=1.26",
+    "requests>=2.31",
+    "psutil>=5.9",
+]
+
+[project.optional-dependencies]
+# PyQt5 is the only Qt5 binding with cp312 wheels; PySide2 stops at 3.10.
+gui = ["PyQt5>=5.15.10"]
+
+[project.scripts]
+node-clf = "node.cli:main"
+node-agent = "node.agent.cli:main"
+
+[project.gui-scripts]
+# gui-scripts, not scripts: on Windows this binds to pythonw.exe, so launching
+# the node does not flash a console window behind it.
+node-gui = "node.gui.app:main"
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/node"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Tests that talk to the live control plane are opt-in: a default `pytest` run
+# has to work offline, and on a machine that has never enrolled as a node.
+addopts = "-q -m 'not integration'"
+markers = [
+    "integration: hits the live control plane; requires NODE_AGENT_LIVE=1",
+    "gui: needs PyQt5 and an offscreen Qt platform; skipped when the extra is absent",
+]
